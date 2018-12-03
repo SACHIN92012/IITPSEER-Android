@@ -1,16 +1,17 @@
 package com.cs354.iitp.iitpseer;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.SparseArray;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -40,16 +41,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener{
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+
 
     SurfaceView surfaceView;
     CameraSource cameraSource;
-    TextView textView;
+    TextView textView, alertTextView;
     String building_final;
     BarcodeDetector barcodeDetector;
 
     private List<String> BuildingNames;
-
+    private int CAMERA_PERMISSION_CODE = 1;
     Spinner spinner;
 
     @Override
@@ -57,10 +59,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        BuildingNames=new ArrayList<>();
-        BuildingNames.add("Please Select a Building");
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)==PackageManager.PERMISSION_DENIED) {
+            requestCameraPermission();
+        }
 
-        spinner =findViewById(R.id.spinner_building);
+        BuildingNames = new ArrayList<>();
+        BuildingNames.add("None");
+
+        alertTextView = findViewById(R.id.alertMessage);
+        spinner = findViewById(R.id.spinner_building);
         surfaceView = findViewById(R.id.cameraPreview);
         textView = findViewById(R.id.scannerResult);
         barcodeDetector = new BarcodeDetector.Builder(this).setBarcodeFormats(Barcode.QR_CODE).build();
@@ -99,7 +106,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         });
 
 
-
         barcodeDetector.setProcessor(new Detector.Processor<Barcode>() {
             @Override
             public void release() {
@@ -110,18 +116,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             public void receiveDetections(Detector.Detections<Barcode> detections) {
                 final SparseArray<Barcode> qrcode = detections.getDetectedItems();
 
-                if(qrcode.size()!= 0)
-                {
+                if (qrcode.size() != 0) {
                     textView.post(new Runnable() {
                         @Override
                         public void run() {
-                            if(spinner.getSelectedItemPosition()>0) {
-                                textView.setText(qrcode.valueAt(0).displayValue);
+                            if (spinner.getSelectedItemPosition() > 0) {
+//                                textView.setText(qrcode.valueAt(0).displayValue);
                                 createExitEntry(qrcode.valueAt(0).displayValue);
                                 barcodeDetector.release();
-                            }
-                            else
-                                Toast.makeText(getApplicationContext(),"Please Select a Building", Toast.LENGTH_SHORT).show();
+                            } else
+                                alertTextView.setVisibility(View.VISIBLE);
                         }
                     });
                 }
@@ -132,11 +136,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int i, long l) {
-                String building=   parent.getItemAtPosition(parent.getSelectedItemPosition()).toString();
-                Toast.makeText(getApplicationContext(),building,Toast.LENGTH_LONG).show();
+                String building = parent.getItemAtPosition(parent.getSelectedItemPosition()).toString();
+                if(i>0) {
+                    Toast.makeText(getApplicationContext(), building + " Selected", Toast.LENGTH_LONG).show();
+                    alertTextView.setVisibility(View.GONE);
+                }
                 building_final = Integer.toString(i);
                 parent.setSelection(parent.getSelectedItemPosition());
             }
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 // DO Nothing here
@@ -145,8 +153,39 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         });
     }
 
-    private void getSpinnerList()
-    {
+    private void requestCameraPermission() {
+
+        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.CAMERA)){
+                new AlertDialog.Builder(this)
+                        .setTitle("Permission Needed")
+                        .setMessage("This Permission is required for Scanning QR Code")
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+                            }
+                        })
+                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        })
+                        .create().show();
+        }else
+        {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        finish();
+        startActivity(getIntent());
+    }
+
+    private void getSpinnerList() {
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, Constants.BUILDING_URL, new JSONObject(new HashMap<>()),
                 new Response.Listener<JSONObject>() {
                     @Override
@@ -154,11 +193,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         Toast.makeText(getApplicationContext(), "Building List Recieved", Toast.LENGTH_LONG).show();
                         try {
                             JSONArray jsonArray = response.getJSONArray("data");
-                            for (int i = 0;i<jsonArray.length();i++)
-                            {
-                                JSONObject jsonEntries =jsonArray.getJSONObject(i);
-                                String country=jsonEntries.getString("Name");
-                                Log.e("Building: ",country);
+                            for (int i = 0; i < jsonArray.length(); i++) {
+                                JSONObject jsonEntries = jsonArray.getJSONObject(i);
+                                String country = jsonEntries.getString("Name");
+                                Log.e("Building: ", country);
                                 BuildingNames.add(country);
 
                             }
@@ -188,11 +226,11 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         queue.add(jsonObjectRequest);
     }
 
-    private void createExitEntry(String  message)
-    {
+    private void createExitEntry(String message) {
         Intent intent = new Intent(this, EntryExit.class);
         intent.putExtra("EXTRA_MESSAGE", message);
         intent.putExtra("EXTRA_MESSAGE2", building_final);
+        intent.putExtra("EXTRA_MESSAGE3", spinner.getItemAtPosition(spinner.getSelectedItemPosition()).toString());
         startActivity(intent);
     }
 
@@ -208,7 +246,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         Toast.makeText(parent.getContext(), "OnItemSelectedListener : " + parent.getItemAtPosition(position).toString(),
                 Toast.LENGTH_SHORT).show();
-        Log.e("Spinner Selection",parent.getItemAtPosition(position).toString());
+        Log.e("Spinner Selection", parent.getItemAtPosition(position).toString());
     }
 
     @Override

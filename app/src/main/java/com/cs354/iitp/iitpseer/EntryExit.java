@@ -26,7 +26,7 @@ import java.util.Map;
 
 public class EntryExit extends AppCompatActivity {
 
-    TextView textView_name, textView_phone, textView_email;
+    TextView textView_name, textView_phone, textView_email, textView_building;
     Button button_entry, button_exit;
 
     private static final String LOG_TAG = EntryExit.class.getSimpleName();
@@ -47,41 +47,44 @@ public class EntryExit extends AppCompatActivity {
         button_entry = findViewById(R.id.button_entry);
         button_exit = findViewById(R.id.button_exit);
         imageView = findViewById(R.id.imageView_photo);
+        textView_building = findViewById(R.id.textView_building);
 
 //        Intent intent = getIntent();
         Bundle extras = getIntent().getExtras();
 
+        assert extras != null;
         final String message = extras.getString("EXTRA_MESSAGE");
 
         final String building = extras.getString("EXTRA_MESSAGE2");
 
+        final String building_name = extras.getString("EXTRA_MESSAGE3");
 
-        getData(message);
+        getData(message, building_name);
 
         button_entry.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                makeEntry(message, building);
+                makeEntry(message, building, name);
             }
         });
 
         button_exit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                makeExit(message, building);
+                makeExit(message, building, name);
             }
         });
 
     }
 
-    private void makeEntry(String id_name, String building) {
+    private void makeEntry(String id_name, String building, String fullName) {
 
         Log.d(LOG_TAG, "id_name " + id_name);
 
         Map<String, String> params = new HashMap<>();
         params.put("ID", id_name);
         params.put("BuildingNo", building);
-        params.put("FullName", name);
+        params.put("FullName", fullName);
 
         CustomRequest jsonObjectRequest = new CustomRequest(Request.Method.POST, Constants.ENTRY_URL, params,
                 new Response.Listener<JSONObject>() {
@@ -108,14 +111,14 @@ public class EntryExit extends AppCompatActivity {
         queue.add(jsonObjectRequest);
     }
 
-    private void makeExit(String id_name, String building) {
+    private void makeExit(String id_name, String building, String fullName) {
 
         Log.d(LOG_TAG, "id_name " + id_name);
 
         Map<String, String> params = new HashMap<>();
         params.put("ID", id_name);
         params.put("BuildingNo", building);
-        params.put("FullName", name);
+        params.put("FullName", fullName);
 
         CustomRequest jsonObjectRequest = new CustomRequest(Request.Method.POST, Constants.EXIT_URL, params,
                 new Response.Listener<JSONObject>() {
@@ -142,7 +145,7 @@ public class EntryExit extends AppCompatActivity {
         queue.add(jsonObjectRequest);
     }
 
-    private void getData(String id) {
+    private void getData(String id, final String building_name) {
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET,
                 Constants.PEOPLE_URL + "?id="+ id, new JSONObject(new HashMap<>()),
@@ -155,9 +158,10 @@ public class EntryExit extends AppCompatActivity {
                             name = jsonObject.getString("FullName");
                             phone = jsonObject.getString("Phone");
                             email = jsonObject.getString("Email");
-                            textView_name.setText("Name: " + name);
-                            textView_phone.setText("Phone: " + phone);
-                            textView_email.setText("Email: " + email);
+                            textView_name.setText(name);
+                            textView_phone.setText( phone);
+                            textView_email.setText(email);
+                            textView_building.setText(building_name);
                             ImageLoader mImageLoader = MySingleton.getInstance(getApplicationContext()).getImageLoader();
                             NetworkImageView avatar = findViewById(R.id.imageView_photo);
                             avatar.setImageUrl(Constants.ROOT_URL+"/"+jsonObject.getString("ImageURL"), mImageLoader);
