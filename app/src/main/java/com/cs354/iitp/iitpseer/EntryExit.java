@@ -2,6 +2,7 @@ package com.cs354.iitp.iitpseer;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -64,27 +65,26 @@ public class EntryExit extends AppCompatActivity {
         button_entry.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                makeEntry(message, building, name);
+                makeEntry(message, building);
             }
         });
 
         button_exit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                makeExit(message, building, name);
+                makeExit(message,building);
             }
         });
 
     }
 
-    private void makeEntry(String id_name, String building, String fullName) {
+    private void makeEntry(String message, String building) {
 
-        Log.d(LOG_TAG, "id_name " + id_name);
 
         Map<String, String> params = new HashMap<>();
-        params.put("ID", id_name);
         params.put("BuildingNo", building);
-        params.put("FullName", fullName);
+        params.put("message", message);
+        params.put("APIKey", Constants.Token);
 
         CustomRequest jsonObjectRequest = new CustomRequest(Request.Method.POST, Constants.ENTRY_URL, params,
                 new Response.Listener<JSONObject>() {
@@ -111,14 +111,13 @@ public class EntryExit extends AppCompatActivity {
         queue.add(jsonObjectRequest);
     }
 
-    private void makeExit(String id_name, String building, String fullName) {
-
-        Log.d(LOG_TAG, "id_name " + id_name);
+    private void makeExit(String message, String building) {
 
         Map<String, String> params = new HashMap<>();
-        params.put("ID", id_name);
         params.put("BuildingNo", building);
-        params.put("FullName", fullName);
+        params.put("message", message);
+        params.put("APIKey", Constants.Token);
+
 
         CustomRequest jsonObjectRequest = new CustomRequest(Request.Method.POST, Constants.EXIT_URL, params,
                 new Response.Listener<JSONObject>() {
@@ -145,10 +144,15 @@ public class EntryExit extends AppCompatActivity {
         queue.add(jsonObjectRequest);
     }
 
-    private void getData(String id, final String building_name) {
+    private void getData(String message, final String building_name) {
 
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET,
-                Constants.PEOPLE_URL + "?id="+ id, new JSONObject(new HashMap<>()),
+
+        Map<String,String> params =new HashMap<>();
+        params.put("APIKey", Constants.Token);
+        params.put("message", message);
+
+        CustomRequest jsonObjectRequest = new CustomRequest(Request.Method.POST,
+                Constants.PEOPLE_URL, params,
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
@@ -178,20 +182,7 @@ public class EntryExit extends AppCompatActivity {
                     public void onErrorResponse(VolleyError error) {
                         Toast.makeText(getApplicationContext(), error.getMessage(), Toast.LENGTH_LONG).show();
                     }
-                }) {
-            @Override
-            protected Map<String, String> getParams() {
-                return new HashMap<>();
-            }
-
-            @Override
-            public Map<String, String> getHeaders() {
-                HashMap<String, String> headers = new HashMap<>();
-                headers.put("Content-Type", "application/json; charset=UTF-8");
-                headers.put("Authorization", "Token " + Constants.Token);
-                return headers;
-            }
-        };
+                });
 
 
         RequestQueue queue = MySingleton.getInstance(getApplicationContext()).getRequestQueue();
